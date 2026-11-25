@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Subnets: slide the prefix</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f6f7;--card:#ffffff;--ink:#12212b;--mut:#5b6b76;--net:#0d7c78;--netbg:#c9eeea;--host:#c26a00;--hostbg:#ffe2b8;--line:#d4dee3;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1820;--card:#15242e;--ink:#e8f1f4;--mut:#93a6b1;--net:#4fd1c5;--netbg:#14524f;--host:#ffb454;--hostbg:#6b3f0a;--line:#2a3d49}}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.4}
+main{max-width:560px;margin:0 auto;padding:18px 16px 28px}
+h1{font-size:1.45rem;line-height:1.2;margin:0 0 4px;font-weight:700}
+.sub{color:var(--mut);font-size:.9rem;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace}
+.ipline{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;gap:8px}
+.ipline b{font-size:1.15rem}
+.legend{display:flex;gap:12px;font-size:.8rem;color:var(--mut)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.row{display:flex;align-items:center;gap:8px;margin:5px 0}
+.oct{width:34px;text-align:right;font-size:.85rem;color:var(--mut);flex:none}
+.bits{display:flex;flex:1;gap:3px}
+.bit{flex:1;height:30px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;background:var(--hostbg);color:var(--host);transition:background .3s,color .3s}
+.bit.n{background:var(--netbg);color:var(--net)}
+.bit.edge{box-shadow:inset -3px 0 0 var(--ink)}
+.slider{margin-top:12px}
+.slider label{display:flex;justify-content:space-between;font-size:.9rem;margin-bottom:6px}
+input[type=range]{width:100%;height:36px;accent-color:var(--net)}
+.hint{font-size:.8rem;color:var(--host);margin-top:2px}
+.cap{min-height:3.2em;font-size:1rem;margin:0}
+.cnt{margin-top:6px;font-size:.78rem;color:var(--mut)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{font-size:2rem;font-weight:700;line-height:1.1}
+.big.h{color:var(--host)}.big.n{color:var(--net)}
+.lab{font-size:.78rem;color:var(--mut)}
+.bar{height:10px;border-radius:5px;background:var(--hostbg);margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--host);width:100%;transition:width .4s}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.88rem}
+.kv span:nth-child(odd){color:var(--mut)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-size:.9rem;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--net);outline-offset:2px}
+.phrase{text-align:center;font-weight:700;font-size:1.05rem;margin:4px 0 14px}
+.warn{color:var(--host);font-weight:700}
+.foot{font-size:.82rem;color:var(--mut)}
+.foot h2{font-size:.9rem;margin:0 0 6px;color:var(--ink)}
+.foot p{margin:3px 0}
+.strip{display:flex;gap:3px;margin-bottom:10px;height:30px}
+.strip div{display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;border-radius:6px;white-space:nowrap;overflow:hidden;transition:flex .4s}
+.sN{background:var(--net);color:var(--bg)}.sH{background:var(--host);color:var(--bg);min-width:54px}
+.why{margin:0;font-size:.9rem}
+.fit input{width:90px;font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);margin-left:8px}
+.fit #fitTxt{margin:8px 0 0;font-weight:700;color:var(--net)}
+.fit.fail{border-color:#d64545;background:rgba(214,69,69,.14)}
+.fit.fail #fitTxt{color:#d64545}
+</style>
+</head>
+<body>
+<main>
+<h1>What happens to an IP address when the prefix slides?</h1>
+<p class="sub">Same address, <span class="mono">192.168.10.37</span>. Only the dividing line moves.</p>
+<p class="sub">CIDR notation: <span class="mono">a.b.c.d/x</span>, where x = number of bits in the subnet part.</p>
+
+<div class="card">
+  <div class="ipline"><b class="mono" id="ipTxt">192.168.10.37/24</b>
+    <div class="legend"><span><i class="dot" style="background:var(--net)"></i>Subnet</span><span><i class="dot" style="background:var(--host)"></i>Host</span></div></div>
+  <div class="strip"><div class="sN mono" id="sN"></div><div class="sH mono" id="sH"></div></div>
+  <div id="bits"></div>
+  <div class="slider">
+    <label for="p"><span>Prefix length</span><b class="mono" id="pv">/24</b></label>
+    <input type="range" id="p" min="16" max="28" value="16" step="1" aria-label="Prefix length">
+    <div class="hint" id="hint">Try me: drag the slider, or let it play.</div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="cap" id="cap"></p>
+  <div class="cnt mono" id="cnt"></div>
+  <div class="btns" style="margin-top:10px">
+    <button id="play">Pause</button>
+    <button id="back">Back</button>
+    <button id="step">Step</button>
+    <button id="replay">Replay</button>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card"><div class="lab">Usable hosts per subnet</div><div class="big h mono" id="hosts">0</div>
+    <div class="bar"><i id="hbar"></i></div></div>
+  <div class="card"><div class="lab">Subnets carved from 192.168.0.0/16</div><div class="big n mono" id="subs">0</div></div>
+</div>
+
+<div class="card">
+  <div class="lab" style="margin-bottom:6px">Before and after, side by side</div>
+  <div class="grid">
+    <div><div class="lab">At /16</div><div class="mono" style="font-weight:700">65,534 hosts</div><div class="mono lab">1 subnet</div></div>
+    <div><div class="lab">Now at <span id="nowP">/16</span></div><div class="mono" style="font-weight:700" id="nowH"></div><div class="mono lab" id="nowS"></div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="kv mono">
+    <span>Mask</span><span id="mask"></span>
+    <span>Subnet</span><span id="netA"></span>
+    <span>Broadcast</span><span id="bc"></span>
+  </div>
+</div>
+
+<div class="card"><p class="why" id="why"></p></div>
+
+<div class="card fit" id="fit">
+  <label for="need">Devices you need to connect:<input type="number" id="need" value="30" min="1" max="70000" inputmode="numeric"></label>
+  <p id="fitTxt"></p>
+</div>
+
+<p class="phrase">Slide right: more networks, smaller rooms.</p>
+
+<div class="card foot">
+  <h2>Who did what</h2>
+  <p>Khadija Shahid — built the address bar and prefix slider; published the page on GitHub Pages</p>
+  <p>Maya Ali — built the counters and the mask, subnet and broadcast calculations</p>
+  <p>Rimas Ali — wrote the title, captions and &ldquo;Why &minus; 2&rdquo; card; built the FULL-capacity check</p>
+  <h2 style="margin-top:12px">References</h2>
+  <p>Kurose &amp; Ross 8e · Ch 4 Network Layer: Data Plane · lecture slides 4-8 to 4-11 (subnets, subnet mask, CIDR) and 4-19 (address allocation)</p>
+  <p>The &minus; 2 rule (subnet address and broadcast address) is standard IPv4 practice, added beyond the slides.</p>
+</div>
+</main>
+
+<script>
+(function(){
+var IP=[192,168,10,37];
+var ipInt=((IP[0]<<24)|(IP[1]<<16)|(IP[2]<<8)|IP[3])>>>0;
+var bitsEl=document.getElementById('bits'),cells=[];
+for(var r=0;r<4;r++){
+  var row=document.createElement('div');row.className='row';
+  var o=document.createElement('div');o.className='oct mono';o.textContent=IP[r];row.appendChild(o);
+  var b=document.createElement('div');b.className='bits mono';
+  for(var k=0;k<8;k++){var c=document.createElement('div');c.className='bit';c.textContent=(IP[r]>>(7-k))&1;b.appendChild(c);cells.push(c)}
+  row.appendChild(b);bitsEl.appendChild(row);
+}
+function $(i){return document.getElementById(i)}
+function dq(n){return [(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255].join('.')}
+function fmt(n){return n.toLocaleString('en-US')}
+var shown={hosts:0,subs:0};
+function tween(id,key,to){
+  var from=shown[key],t0=performance.now(),d=450;
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){$(id).textContent=fmt(to);shown[key]=to;return}
+  (function f(t){var x=Math.min(1,(t-t0)/d);var v=Math.round(from+(to-from)*x);$(id).textContent=fmt(v);if(x<1)requestAnimationFrame(f);else shown[key]=to})(t0);
+}
+function render(p){
+  var h=32-p,hosts=Math.pow(2,h)-2,subs=Math.pow(2,p-16);
+  var mask=(0xFFFFFFFF<<(32-p))>>>0,net=(ipInt&mask)>>>0,bc=(net|(~mask>>>0))>>>0;
+  cells.forEach(function(c,i){c.className='bit'+(i<p?' n':'')+(i===p-1?' edge':'')});
+  $('pv').textContent='/'+p;$('ipTxt').textContent='192.168.10.37/'+p;
+  tween('hosts','hosts',hosts);tween('subs','subs',subs);
+  $('hbar').style.width=Math.max(1.5,hosts/65534*100)+'%';
+  $('mask').textContent=dq(mask);$('netA').textContent=dq(net);$('bc').textContent=dq(bc);
+  $('sN').style.flex=p+' 1 0';$('sH').style.flex=h+' 1 0';$('sN').textContent='SUBNET · '+p+' bits';$('sH').textContent='HOST '+h;
+  $('why').innerHTML='Why − 2? <b class="mono">'+dq(net)+'</b> is the first address and names the subnet. <b class="mono">'+dq(bc)+'</b> is the last and is the broadcast. Neither can be given to a device.';
+  var need=+$('need').value||0,full=need>hosts;
+  $('fit').className='card fit'+(full?' fail':'');
+  $('fitTxt').textContent=full?'FULL: you need '+fmt(need)+' but only '+fmt(hosts)+' fit. Slide left to make room.':'Fits: '+fmt(need)+' of '+fmt(hosts)+' addresses used.';
+  $('nowP').textContent='/'+p;$('nowH').textContent=fmt(hosts)+' hosts';$('nowS').textContent=fmt(subs)+' subnet'+(subs>1?'s':'');
+  var cap='The first '+p+' bits name the subnet. The last '+h+' bits name the host, so '+fmt(hosts)+' devices fit.';
+  if(p===16)cap='Start wide: only 16 bits name the subnet, so one huge room holds 65,534 devices.';
+  else if(p===24)cap='The familiar /24: 24 network bits, 8 host bits, 254 devices.';
+  else if(p===28)cap='Only 4 host bits are left: just 14 devices fit.';
+  var el=$('cap');el.textContent=cap;
+
+  $('cnt').textContent='Step '+(p-15)+'/13 · usable hosts = 2^'+h+' − 2 · subnets = 2^'+(p-16);
+}
+var sl=$('p'),timer=null,playing=true;
+function setP(v){sl.value=v;render(+v)}
+function tick(){var v=+sl.value+1;if(v>28){stop();setTimeout(function(){if(playing){setP(16);start()}},1800);return}setP(v)}
+function start(){stop();timer=setInterval(tick,1100);playing=true;$('play').textContent='Pause'}
+function stop(){if(timer){clearInterval(timer);timer=null}}
+function pause(){stop();playing=false;$('play').textContent='Play'}
+sl.addEventListener('input',function(){pause();$('hint').textContent='Watch the host count jump as you slide.';render(+sl.value)});
+$('play').addEventListener('click',function(){if(timer){pause()}else{if(+sl.value>=28)setP(16);start()}});
+$('replay').addEventListener('click',function(){setP(16);start()});
+$('back').addEventListener('click',function(){pause();setP(Math.max(16,+sl.value-1))});
+$('step').addEventListener('click',function(){pause();setP(Math.min(28,+sl.value+1))});
+$('need').addEventListener('input',function(){pause();render(+sl.value)});
+render(16);start();
+})();
+</script>
+</body>
+</html>
